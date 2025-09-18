@@ -7,10 +7,17 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"runtime"
 	"time"
 
 	"github.com/oracle/oci-go-sdk/common"
 )
+
+const name = "oci-cluster-token"
+
+const version = "0.0.0"
+
+var revision = "HEAD"
 
 var outputTemplate = `{
     "apiVersion": "client.authentication.k8s.io/v1beta1",
@@ -24,9 +31,16 @@ var outputTemplate = `{
 func main() {
 	var clusterID string
 	var region string
+	var showVersion bool
 	flag.StringVar(&clusterID, "cluster-id", "", "OCI Container Engine for Kubernetes Cluster OCID")
 	flag.StringVar(&region, "region", "", "OCI Region (e.g., us-ashburn-1)")
+	flag.BoolVar(&showVersion, "V", false, "Print the version")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("%s %s (rev: %s/%s)\n", name, version, revision, runtime.Version())
+		return
+	}
 
 	provider := common.DefaultConfigProvider()
 
