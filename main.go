@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"os/user"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -28,12 +31,27 @@ var outputTemplate = `{
     }
 }`
 
+func ociConfigFile() string {
+	var home string
+	current, e := user.Current()
+	if e != nil {
+		//Give up and try to return something sensible
+		home = os.Getenv("HOME")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+	} else {
+		home = current.HomeDir
+	}
+	return filepath.Join(home, ".oci", "config")
+}
+
 func main() {
 	var clusterID string
 	var region string
 	var showVersion bool
-	flag.StringVar(&clusterID, "cluster-id", "", "OCI Container Engine for Kubernetes Cluster OCID")
-	flag.StringVar(&region, "region", "", "OCI Region (e.g., us-ashburn-1)")
+	flag.StringVar(&clusterID, "cluster-id", os.Getenv("OCI_CLUSTER"), "OCI Container Engine for Kubernetes Cluster OCID")
+	flag.StringVar(&region, "region", os.Getenv("OCI_REGION"), "OCI Region (e.g., us-ashburn-1)")
 	flag.BoolVar(&showVersion, "V", false, "Print the version")
 	flag.Parse()
 
@@ -42,10 +60,25 @@ func main() {
 		return
 	}
 
-	provider := common.DefaultConfigProvider()
-
 	if clusterID == "" {
 		log.Fatal("cluster-id is required")
+	}
+
+	defaultFileProvider, _ := common.ConfigurationProviderFromFileWithProfile(ociConfigFile(), "DEFAULT", "")
+	environmentProvider := common.NewRawConfigurationProvider(
+		os.Getenv("OCI_TENANCY"),
+		os.Getenv("OCI_USER"),
+		os.Getenv("OCI_REGION"),
+		os.Getenv("OCI_FINGERPRINT"),
+		os.Getenv("OCI_KEY_FILE"),
+		common.String((os.Getenv("OCI_PASSPHRASE"))))
+
+	provider, err := common.ComposingConfigurationProvider([]common.ConfigurationProvider{
+		defaultFileProvider,
+		environmentProvider,
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if region == "" {
