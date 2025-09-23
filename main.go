@@ -63,7 +63,10 @@ func main() {
 	req.Header.Set("Date", date)
 
 	signer := common.DefaultRequestSigner(provider)
-	signer.Sign(req)
+	err = signer.Sign(req)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	params := url.Values{}
 	params.Add("date", req.Header.Get("Date"))
